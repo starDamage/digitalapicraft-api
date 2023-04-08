@@ -9,20 +9,7 @@ export const wordCountHandler = async (req, res, next) => {
     try {
         let { data: document } = await axios.get(documentUrl);
         const words = document.replace(/[^\w\s]/gi, '').split(/\s+/);
-        const wordCount = {};
-
-
-        words.forEach(word => {
-            const lowercaseWord = word;
-            wordCount[lowercaseWord] = (wordCount[lowercaseWord] || 0) + 1;
-        });
-        const topTenWords = Object.keys(wordCount)
-            .sort((a, b) => wordCount[b] - wordCount[a])
-            .slice(0, 10)
-            .map(word => ({
-                word: word,
-                count: wordCount[word]
-            }));
+        let topTenWords = await analyzeDocument(words);
         return res
             .status(StatusCodes.OK)
             .send(
@@ -44,26 +31,10 @@ export const wordCountSecondHandler = async (req, res, next) => {
         http.get(documentUrl, (response) => {
             let rawData = '';
             response.on('data', (chunk) => { rawData += chunk; });
-            response.on('end', () => {
+            response.on('end', async () => {
                 try {
-                    const words = rawData.split(/\s+/);
-                    const wordCount = {};
-                    words.forEach((word) => {
-                        word = word.toLowerCase().replace(/[^\w]/g, '');
-                        if (wordCount[word]) {
-                            wordCount[word]++;
-                        } else {
-                            wordCount[word] = 1;
-                        }
-                    });
-                    const sortedWords = Object.keys(wordCount).sort((a, b) => wordCount[b] - wordCount[a]).slice(0, 10);
-                    const topTenWords = sortedWords.map((word) => {
-                        return {
-                            word,
-                            count: wordCount[word]
-                        };
-                    });
-
+                    const words = rawData.replace(/[^\w\s]/gi, '').split(/\s+/);
+                    let topTenWords = await analyzeDocument(words);
                     return res
                         .status(StatusCodes.OK)
                         .send(
@@ -84,4 +55,21 @@ export const wordCountSecondHandler = async (req, res, next) => {
     } catch (err) {
         next(err);
     }
+};
+
+
+
+export const analyzeDocument = async (words) => {
+    const wordCount = {};
+    words.forEach(word => {
+        const lowercaseWord = word;
+        wordCount[lowercaseWord] = (wordCount[lowercaseWord] || 0) + 1;
+    });
+    return Object.keys(wordCount)
+        .sort((a, b) => wordCount[b] - wordCount[a])
+        .slice(0, 10)
+        .map(word => ({
+            word: word,
+            count: wordCount[word]
+        }));
 };
